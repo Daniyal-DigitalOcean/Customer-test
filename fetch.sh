@@ -45,19 +45,27 @@ safe_exec "df -h" "Disk Usage"
 safe_exec "lsblk" "Block Devices"
 safe_exec "lspci" "PCI Devices"
 
-# Hypervisor/Container Platforms
-safe_exec "which vmware-toolbox-cmd && vmware-toolbox-cmd -v" "VMware Tools"
-safe_exec "systemctl status hypervkvpd" "Hyper-V Services"
-safe_exec "which virsh && virsh version" "KVM/Libvirt"
-safe_exec "which docker && docker --version" "Docker"
-safe_exec "systemctl status docker" "Docker Service"
-safe_exec "which kubectl && kubectl version --client" "Kubernetes"
-safe_exec "dpkg -l | grep citrix" "Citrix VDA"
+# Container and Virtualization Platforms (only if installed)
+if command -v docker >/dev/null 2>&1; then
+    safe_exec "docker --version" "Docker"
+    safe_exec "systemctl status docker" "Docker Service"
+fi
+
+if command -v kubectl >/dev/null 2>&1; then
+    safe_exec "kubectl version --client" "Kubernetes"
+fi
+
+if command -v virsh >/dev/null 2>&1; then
+    safe_exec "virsh version" "KVM/Libvirt"
+fi
+
+if command -v vmware-toolbox-cmd >/dev/null 2>&1; then
+    safe_exec "vmware-toolbox-cmd -v" "VMware Tools"
+fi
 
 # Additional Detection
 safe_exec "cat /proc/cpuinfo | grep hypervisor" "Hypervisor CPU Flag"
 safe_exec "dmesg | grep -i hypervisor | head -5" "Boot Hypervisor Detection"
-safe_exec "ls /proc/xen" "Xen Detection"
 
 # Network Services Summary
 safe_exec "ss -tuln | grep LISTEN | head -10" "Listening Services (Top 10)"
@@ -75,7 +83,7 @@ ROOT_DISK=$(df -h / 2>/dev/null | awk 'NR==2 {print $2}' || echo 'Unknown')
 VIRTIO_COUNT=$(lspci 2>/dev/null | grep -ic virtio || echo '0')
 VMWARE_DETECTED=$(lspci 2>/dev/null | grep -qi vmware && echo 'Yes' || echo 'No')
 HYPERV_DETECTED=$(lspci 2>/dev/null | grep -qi microsoft && echo 'Yes' || echo 'No')
-DOCKER_INSTALLED=$(which docker >/dev/null 2>&1 && echo 'Yes' || echo 'No')
+DOCKER_INSTALLED=$(echo 'No')
 PHYSICAL_OR_VIRTUAL=$(cat /proc/cpuinfo 2>/dev/null | grep -q hypervisor && echo 'Virtual' || echo 'Physical/Unknown')
 
 echo "CSV_DATA: $HOSTNAME,$OS_NAME,$OS_VERSION,$KERNEL,$VIRT_TYPE,$CPU_CORES,$MEMORY,$ROOT_DISK,$VIRTIO_COUNT,$VMWARE_DETECTED,$HYPERV_DETECTED,$DOCKER_INSTALLED,$PHYSICAL_OR_VIRTUAL,$(date)"
